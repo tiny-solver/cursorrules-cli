@@ -158,12 +158,14 @@ func FindLocalRules() (*models.Template, error) {
 
 // CheckConflicts 로컬 파일과 템플릿의 충돌 확인
 func CheckConflicts(template *models.Template) ([]string, error) {
-	rulesPath, err := GetRulesDir()
+	cwd, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("현재 디렉토리를 찾을 수 없습니다: %v", err)
 	}
 
+	rulesPath := filepath.Join(cwd, rulesDir)
 	var conflicts []string
+
 	for _, rule := range template.Files {
 		filePath := filepath.Join(rulesPath, rule.Path)
 		if _, err := os.Stat(filePath); err == nil {
@@ -183,10 +185,12 @@ func CheckConflicts(template *models.Template) ([]string, error) {
 
 // MergeTemplate 로컬 파일과 템플릿 병합
 func MergeTemplate(template *models.Template) error {
-	rulesPath, err := GetRulesDir()
+	cwd, err := os.Getwd()
 	if err != nil {
-		return err
+		return fmt.Errorf("현재 디렉토리를 찾을 수 없습니다: %v", err)
 	}
+
+	rulesPath := filepath.Join(cwd, rulesDir)
 
 	// 기존 파일 백업
 	backupPath := rulesPath + ".backup"
