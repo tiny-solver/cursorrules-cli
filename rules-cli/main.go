@@ -84,14 +84,13 @@ var listCmd = &cobra.Command{
 	},
 }
 
-var pullCmd = &cobra.Command{
-	Use:   "pull [name]",
+var downloadCmd = &cobra.Command{
+	Use:   "download [name]",
 	Short: "템플릿 다운로드",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		projectName := args[0]
 		force, _ := cmd.Flags().GetBool("force")
-		merge, _ := cmd.Flags().GetBool("merge")
 
 		client, err := gist.NewGistClient()
 		if err != nil {
@@ -128,8 +127,6 @@ var pullCmd = &cobra.Command{
 		if len(conflicts) > 0 {
 			if force {
 				fmt.Println("강제로 덮어쓰기 모드로 진행합니다...")
-			} else if merge {
-				fmt.Println("자동 병합 모드로 진행합니다...")
 			} else {
 				fmt.Println("다음 파일들이 충돌합니다:")
 				for _, conflict := range conflicts {
@@ -137,13 +134,13 @@ var pullCmd = &cobra.Command{
 				}
 				fmt.Println("\n다음 옵션 중 하나를 선택하세요:")
 				fmt.Println("  --force: 강제로 덮어쓰기")
-				fmt.Println("  --merge: 자동 병합")
 				return
 			}
 		}
 
 		// 템플릿 저장
-		if err := filesystem.MergeTemplate(template); err != nil {
+		version := models.NewTemplateVersion(projectName, "v1.0.0")
+		if err := filesystem.MergeTemplate(template, version); err != nil {
 			fmt.Printf("템플릿 저장 실패: %v\n", err)
 			return
 		}
@@ -152,8 +149,8 @@ var pullCmd = &cobra.Command{
 	},
 }
 
-var pushCmd = &cobra.Command{
-	Use:   "push [name]",
+var uploadCmd = &cobra.Command{
+	Use:   "upload [name]",
 	Short: "로컬 템플릿 업로드",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -164,9 +161,9 @@ var pushCmd = &cobra.Command{
 			return
 		}
 
-		template, err := filesystem.FindLocalRules()
+		template, version, err := filesystem.LoadLocalTemplate()
 		if err != nil {
-			fmt.Printf("로컬 규칙 파일 검색 실패: %v\n", err)
+			fmt.Printf("로컬 템플릿 로드 실패: %v\n", err)
 			return
 		}
 
@@ -192,14 +189,54 @@ var pushCmd = &cobra.Command{
 	},
 }
 
+var deleteCmd = &cobra.Command{
+	Use:   "delete [name]",
+	Short: "템플릿 삭제",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		projectName := args[0]
+		force, _ := cmd.Flags().GetBool("force")
+
+		client, err := gist.NewGistClient()
+		if err != nil {
+			fmt.Printf("Gist 클라이언트 생성 실패: %v\n", err)
+			return
+		}
+
+		gist, err := client.FindGistByDescription(projectName)
+		if err != nil {
+			fmt.Printf("프로젝트 '%s'를 찾을 수 없습니다: %v\n", projectName, err)
+			return
+		}
+
+		if !force {
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Printf("정말로 '%s' 템플릿을 삭제하시겠습니까? (y/N): ", projectName)
+			answer, _ := reader.ReadString('\n')
+			if strings.TrimSpace(strings.ToLower(answer)) != "y" {
+				fmt.Println("삭제가 취소되었습니다.")
+				return
+			}
+		}
+
+		if err := client.DeleteGist(gist.GetID()); err != nil {
+			fmt.Printf("템플릿 삭제 실패: %v\n", err)
+			return
+		}
+
+		fmt.Printf("프로젝트 '%s'의 템플릿이 삭제되었습니다.\n", projectName)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(authCmd)
 	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(pullCmd)
-	rootCmd.AddCommand(pushCmd)
+	rootCmd.AddCommand(downloadCmd)
+	rootCmd.AddCommand(uploadCmd)
+	rootCmd.AddCommand(deleteCmd)
 
-	pullCmd.Flags().BoolP("force", "f", false, "강제로 덮어쓰기")
-	pullCmd.Flags().BoolP("merge", "m", false, "자동 병합")
+	downloadCmd.Flags().BoolP("force", "f", false, "강제로 덮어쓰기")
+	deleteCmd.Flags().BoolP("force", "f", false, "확인 없이 강제 삭제")
 }
 
 func main() {

@@ -1,6 +1,13 @@
 # Cursor Rules CLI
 
-Cursor Rules CLI는 터미널에서 Cursor rules(프롬프트/지침 템플릿) 파일을 쉽게 관리할 수 있는 도구입니다.
+Cursor Rules CLI는 터미널에서 Cursor rules 파일을 관리하는 도구입니다.
+
+## 주요 기능
+
+1. GitHub Personal Access Token을 통한 간편한 인증
+2. GitHub Gist를 이용한 규칙 파일 동기화
+3. 안전한 파일 관리 (덮어쓰기 확인 및 백업)
+4. 템플릿 삭제 기능
 
 ## 설치 방법
 
@@ -24,66 +31,47 @@ go install github.com/tinysolver/rules-cli@latest
 
 ## 사용 방법
 
-### 1. GitHub 토큰 설정
-
-먼저 GitHub Personal Access Token을 발급받아야 합니다:
-
-1. GitHub 계정으로 로그인
-2. Settings > Developer settings > Personal access tokens > Tokens (classic)로 이동
-3. "Generate new token (classic)" 클릭
-4. 토큰 설정:
-   - Note: `cursorrules-cli` (또는 원하는 이름)
-   - Expiration: 원하는 만료 기간 선택
-   - Select scopes: `gist` 체크
-5. "Generate token" 클릭하여 토큰 발급
-6. 발급된 토큰을 복사하여 다음 명령어로 설정:
-   ```bash
-   cursorrules auth
-   ```
-
-### 2. 기본 명령어
+### 1. 인증 설정
 
 ```bash
-# 템플릿 목록 보기
-cursorrules list
-
-# 템플릿 다운로드
-cursorrules pull 'template-name'
-
-# 로컬 템플릿 업로드
-cursorrules push 'template-name'
+cursorrules auth
 ```
 
-### 상세 설명
+GitHub Personal Access Token을 입력하여 인증을 설정합니다.
 
-1. **인증**
-   ```bash
-   cursorrules auth
-   ```
-   - GitHub Personal Access Token을 통한 인증
-   - 토큰은 `~/.cursorrules/config-cli.json`에 저장
+### 2. 템플릿 목록 보기
 
-2. **템플릿 목록**
-   ```bash
-   cursorrules list
-   ```
-   - GitHub Gist에 저장된 템플릿 목록 출력
-   - 각 템플릿의 이름과 설명 표시
+```bash
+cursorrules list
+```
 
-3. **템플릿 다운로드**
-   ```bash
-   cursorrules pull <template-name>
-   ```
-   - 지정한 템플릿을 현재 디렉토리에 다운로드
-   - 기존 파일이 있으면 덮어쓰기 전 확인
+GitHub Gist에 저장된 템플릿 목록을 보여줍니다.
 
-4. **템플릿 업로드**
-   ```bash
-   cursorrules push <template-name>
-   ```
-   - 현재 디렉토리의 `.cursor/rules/**/*.mdc` 파일들을 찾아서 JSON으로 변환
-   - GitHub Gist에 업로드
-   - 파일 경로와 내용을 포함
+### 3. 템플릿 다운로드
+
+```bash
+cursorrules download <템플릿이름>
+```
+
+지정한 템플릿을 다운로드합니다. 로컬 파일과 충돌이 있는 경우:
+- 파일의 수정 시간을 비교하여 알려줍니다
+- `--force` 옵션을 사용하면 강제로 덮어쓸 수 있습니다
+
+### 4. 템플릿 업로드
+
+```bash
+cursorrules upload <템플릿이름>
+```
+
+현재 디렉토리의 규칙 파일을 GitHub Gist에 업로드합니다. 기존 템플릿이 있으면 덮어씁니다.
+
+### 5. 템플릿 삭제
+
+```bash
+cursorrules delete <템플릿이름>
+```
+
+지정한 템플릿을 GitHub Gist에서 삭제합니다. 삭제 전 확인 메시지가 표시됩니다.
 
 ## 파일 구조
 
@@ -103,7 +91,7 @@ cursorrules push 'template-name'
 
 ## 기여하기
 
-기여는 언제나 환영합니다! 이슈를 열거나 PR을 보내주세요.
+기여는 언제나 환영합니다! 버그 리포트, 기능 제안, 풀 리퀘스트 등을 통해 참여해주세요.
 
 ## 라이선스
 
