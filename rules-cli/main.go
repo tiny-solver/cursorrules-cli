@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tinysolver/rules-cli/config"
+	"github.com/tinysolver/rules-cli/gist"
 )
 
 var rootCmd = &cobra.Command{
@@ -53,8 +54,31 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "템플릿 목록 출력",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("템플릿 목록 출력...")
-		// TODO: 목록 출력 로직 구현
+		client, err := gist.NewGistClient()
+		if err != nil {
+			fmt.Printf("Gist 클라이언트 생성 실패: %v\n", err)
+			return
+		}
+
+		gists, err := client.ListGists()
+		if err != nil {
+			fmt.Printf("Gist 목록 조회 실패: %v\n", err)
+			return
+		}
+
+		if len(gists) == 0 {
+			fmt.Println("저장된 템플릿이 없습니다.")
+			return
+		}
+
+		fmt.Println("저장된 템플릿 목록:")
+		for _, gist := range gists {
+			description := gist.GetDescription()
+			if description == "" {
+				description = "(설명 없음)"
+			}
+			fmt.Printf("- %s: %s\n", gist.GetID(), description)
+		}
 	},
 }
 

@@ -24,20 +24,36 @@ go install github.com/tinysolver/rules-cli@latest
 
 ## 사용 방법
 
-### 기본 명령어
+### 1. GitHub 토큰 설정
+
+먼저 GitHub Fine-grained 토큰을 발급받아야 합니다:
+
+1. GitHub 계정으로 로그인
+2. Settings > Developer settings > Fine-grained tokens로 이동
+3. "Generate new token" 클릭
+4. 토큰 설정:
+   - Token name: `cursorrules-cli` (또는 원하는 이름)
+   - Expiration: 원하는 만료 기간 선택
+   - Repository access: "All repositories" 선택
+   - Permissions:
+     - Gists: Read and write
+5. "Generate token" 클릭하여 토큰 발급
+6. 발급된 토큰을 복사하여 다음 명령어로 설정:
+   ```bash
+   cursorrules auth
+   ```
+
+### 2. 기본 명령어
 
 ```bash
-# GitHub OAuth 인증
-cursorrules auth
-
 # 템플릿 목록 보기
 cursorrules list
 
 # 템플릿 다운로드
-cursorrules sync <template-name>
+cursorrules sync 'template-name'
 
 # 로컬 템플릿 업로드
-cursorrules push <template-name>
+cursorrules push 'template-name'
 ```
 
 ### 상세 설명
@@ -90,12 +106,7 @@ cursorrules push <template-name>
 
 ## 기여하기
 
-프로젝트에 기여하고 싶으시다면 다음 단계를 따라주세요:
-
-1. 이슈 생성
-2. 브랜치 생성
-3. 변경사항 커밋
-4. PR 생성
+기여는 언제나 환영합니다! 이슈를 열거나 PR을 보내주세요.
 
 ## 라이선스
 
