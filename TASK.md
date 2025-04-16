@@ -2,27 +2,29 @@
 
 ## Phase 1: 기본 CLI 구조 (3일)
 
-### 1.1 프로젝트 초기화
-- [ ] Go 프로젝트 설정
+### 1.1 프로젝트 초기화 ✅
+- [x] Go 프로젝트 설정
   ```bash
   mkdir rules-cli
   cd rules-cli
   go mod init github.com/tinysolver/rules-cli
   ```
 
-- [ ] 의존성 설치
+- [x] 의존성 설치
   ```bash
   go get github.com/spf13/cobra
   go get github.com/spf13/viper
   go get github.com/google/go-github/v58
   ```
 
-### 1.2 CLI 명령어 구현
-- [ ] 기본 명령어 구조
+### 1.2 CLI 명령어 구현 ✅
+- [x] 기본 명령어 구조
   ```go
   package main
 
   import (
+      "fmt"
+      "os"
       "github.com/spf13/cobra"
   )
 
@@ -34,9 +36,10 @@
 
   var authCmd = &cobra.Command{
       Use:   "auth",
-      Short: "GitHub OAuth 인증",
+      Short: "GitHub Personal Access Token 설정",
       Run: func(cmd *cobra.Command, args []string) {
-          // 인증 로직
+          fmt.Println("GitHub 토큰 설정...")
+          // TODO: 토큰 설정 로직 구현
       },
   }
 
@@ -44,7 +47,8 @@
       Use:   "list",
       Short: "템플릿 목록 출력",
       Run: func(cmd *cobra.Command, args []string) {
-          // 목록 출력 로직
+          fmt.Println("템플릿 목록 출력...")
+          // TODO: 목록 출력 로직 구현
       },
   }
 
@@ -53,7 +57,8 @@
       Short: "템플릿 다운로드",
       Args:  cobra.ExactArgs(1),
       Run: func(cmd *cobra.Command, args []string) {
-          // 다운로드 로직
+          fmt.Printf("템플릿 %s 다운로드 중...\n", args[0])
+          // TODO: 다운로드 로직 구현
       },
   }
 
@@ -62,21 +67,42 @@
       Short: "로컬 템플릿 업로드",
       Args:  cobra.ExactArgs(1),
       Run: func(cmd *cobra.Command, args []string) {
-          // 업로드 로직
+          fmt.Printf("템플릿 %s 업로드 중...\n", args[0])
+          // TODO: 업로드 로직 구현
       },
+  }
+
+  func init() {
+      rootCmd.AddCommand(authCmd)
+      rootCmd.AddCommand(listCmd)
+      rootCmd.AddCommand(syncCmd)
+      rootCmd.AddCommand(pushCmd)
+  }
+
+  func main() {
+      if err := rootCmd.Execute(); err != nil {
+          fmt.Println(err)
+          os.Exit(1)
+      }
   }
   ```
 
+- [x] 명령어 테스트
+  - [x] `cursorrules --help`
+  - [x] `cursorrules auth`
+  - [x] `cursorrules list`
+  - [x] `cursorrules sync <name>`
+  - [x] `cursorrules push <name>`
+
 ## Phase 2: 인증 시스템 (2일)
 
-### 2.1 GitHub OAuth
-- [ ] OAuth 앱 등록
-- [ ] 인증 플로우 구현
-- [ ] 토큰 관리
+### 2.1 Personal Access Token 관리
+- [ ] 토큰 설정 구현
   ```go
   package config
 
   import (
+      "fmt"
       "os"
       "path/filepath"
       "github.com/spf13/viper"
@@ -93,13 +119,27 @@
           return err
       }
 
-      viper.SetConfigName("config")
+      viper.SetConfigName("config-cli")
       viper.SetConfigType("json")
       viper.AddConfigPath(configPath)
 
       return viper.ReadInConfig()
   }
+
+  func SaveToken(token string) error {
+      viper.Set("github_token", token)
+      return viper.WriteConfig()
+  }
+
+  func GetToken() string {
+      return viper.GetString("github_token")
+  }
   ```
+
+### 2.2 토큰 검증
+- [ ] GitHub API로 토큰 유효성 검사
+- [ ] 토큰 권한 확인 (gist 접근 권한)
+- [ ] 에러 처리
 
 ## Phase 3: Gist 연동 (3일)
 
@@ -160,20 +200,15 @@
 
 ## 당장 해야할 작업 (오늘)
 
-1. **프로젝트 초기화**
-   ```bash
-   mkdir rules-cli
-   cd rules-cli
-   go mod init github.com/tinysolver/rules-cli
-   go get github.com/spf13/cobra
-   go get github.com/spf13/viper
-   go get github.com/google/go-github/v58
-   ```
+1. **인증 시스템 구현**
+   - Personal Access Token 설정 구현
+   - 토큰 저장 및 검증 로직 구현
+   - 설정 파일 구조 구현
 
-2. **기본 CLI 구조 구현**
-   - `main.go` 작성
-   - 기본 명령어 구현
-   - 도움말 메시지 작성
+2. **설정 파일 구조 구현**
+   - `~/.cursorrules/config-cli.json` 생성
+   - 토큰 저장 로직 구현
+   - 설정 읽기/쓰기 구현
 
 ## 리스크 관리
 

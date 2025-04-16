@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/tinysolver/rules-cli/config"
 )
 
 var rootCmd = &cobra.Command{
@@ -15,10 +18,34 @@ var rootCmd = &cobra.Command{
 
 var authCmd = &cobra.Command{
 	Use:   "auth",
-	Short: "GitHub OAuth 인증",
+	Short: "GitHub Personal Access Token 설정",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("인증 시작...")
-		// TODO: 인증 로직 구현
+		if err := config.InitConfig(); err != nil {
+			fmt.Printf("설정 초기화 실패: %v\n", err)
+			return
+		}
+
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("GitHub Personal Access Token을 입력하세요: ")
+		token, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("토큰 입력 실패: %v\n", err)
+			return
+		}
+
+		token = strings.TrimSpace(token)
+		if err := config.SaveToken(token); err != nil {
+			fmt.Printf("토큰 저장 실패: %v\n", err)
+			return
+		}
+
+		configPath, err := config.GetConfigPath()
+		if err != nil {
+			fmt.Printf("설정 파일 경로 조회 실패: %v\n", err)
+			return
+		}
+
+		fmt.Printf("토큰이 %s에 저장되었습니다.\n", configPath)
 	},
 }
 
