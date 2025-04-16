@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"crypto/md5"
 
 	"github.com/tinysolver/rules-cli/models"
@@ -15,12 +16,12 @@ const (
 
 // GetRulesDir 규칙 디렉토리 경로 조회
 func GetRulesDir() (string, error) {
-	home, err := os.UserHomeDir()
+	dir, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("홈 디렉토리를 찾을 수 없습니다: %v", err)
+		return "", fmt.Errorf("작업 디렉토리를 찾을 수 없습니다: %v", err)
 	}
 
-	dir := filepath.Join(home, rulesDir)
+	dir = filepath.Join(dir, rulesDir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("규칙 디렉토리를 생성할 수 없습니다: %v", err)
 	}
@@ -47,6 +48,11 @@ func LoadLocalTemplate() (*models.Template, *models.TemplateVersion, error) {
 		}
 
 		if info.IsDir() {
+			return nil
+		}
+
+		// .mdc 파일만 처리
+		if !strings.HasSuffix(info.Name(), ".mdc") {
 			return nil
 		}
 
@@ -89,20 +95,32 @@ func SaveLocalTemplate(template *models.Template, version *models.TemplateVersio
 	}
 
 	// 버전 정보 저장
-	versionData, err := version.ToJSONString()
-	if err != nil {
-		return fmt.Errorf("버전 정보 변환 실패: %v", err)
-	}
+	if version != nil {
+		versionData, err := version.ToJSONString()
+		if err != nil {
+			return fmt.Errorf("버전 정보 변환 실패: %v", err)
+		}
 
-	versionPath := filepath.Join(dir, "version.json")
-	if err := os.WriteFile(versionPath, []byte(versionData), 0644); err != nil {
-		return fmt.Errorf("버전 정보 저장 실패: %v", err)
+		versionPath := filepath.Join(dir, "version.json")
+		if err := os.WriteFile(versionPath, []byte(versionData), 0644); err != nil {
+			return fmt.Errorf("버전 정보 저장 실패: %v", err)
+		}
 	}
 
 	// 파일 저장
 	for _, file := range template.Files {
+		// .mdc 파일만 저장
+		if !strings.HasSuffix(file.Name, ".mdc") {
+			continue
+		}
+
 		filePath := filepath.Join(dir, file.Name)
 		content := []byte(file.Content)
+		
+		// 디렉토리 생성
+		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			return fmt.Errorf("디렉토리 생성 실패: %v", err)
+		}
 		
 		// 기존 파일 백업
 		if _, err := os.Stat(filePath); err == nil {

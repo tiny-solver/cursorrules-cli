@@ -53,4 +53,14 @@ func LoadFromReader(r io.Reader) (*Template, error) {
 	}
 
 	return FromJSON(data)
+}
+
+// FromJSON JSON 데이터를 Template으로 변환
+func (t *Template) FromJSON(data []byte) error {
+	var temp Template
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return fmt.Errorf("JSON 파싱 실패: %v", err)
+	}
+	*t = temp
+	return nil
 } 

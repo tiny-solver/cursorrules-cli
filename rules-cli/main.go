@@ -101,37 +101,34 @@ var downloadCmd = &cobra.Command{
 			return
 		}
 
-		// 로컬 템플릿 로드
-		localTemplate, _, err := filesystem.LoadLocalTemplate()
-		if err != nil {
-			fmt.Printf("로컬 템플릿 로드 실패: %v\n", err)
-			return
-		}
-
 		// Gist에서 템플릿 다운로드
-		gist, err := client.FindGistByDescription(templateName)
+		gistObj, err := client.FindGistByDescription(templateName)
 		if err != nil {
 			fmt.Printf("템플릿 다운로드 실패: %v\n", err)
 			return
 		}
 
-		contents, err := client.GetGistContent(gist.GetID())
+		contents, err := client.GetGistContent(gistObj.GetID())
 		if err != nil {
 			fmt.Printf("템플릿 내용 조회 실패: %v\n", err)
 			return
 		}
 
-		// 템플릿 내용을 로컬에 저장
-		for filename, content := range contents {
-			rule := models.Rule{
-				Name:    filename,
-				Content: content,
-			}
-			localTemplate.Files[filename] = rule
+		// JSON에서 템플릿 역직렬화
+		jsonContent, ok := contents["template.json"]
+		if !ok {
+			fmt.Println("템플릿 파일을 찾을 수 없습니다")
+			return
+		}
+
+		template := &models.Template{}
+		if err := template.FromJSON([]byte(jsonContent)); err != nil {
+			fmt.Printf("템플릿 파싱 실패: %v\n", err)
+			return
 		}
 
 		// 로컬에 저장
-		if err := filesystem.SaveLocalTemplate(localTemplate, nil); err != nil {
+		if err := filesystem.SaveLocalTemplate(template, nil); err != nil {
 			fmt.Printf("템플릿 저장 실패: %v\n", err)
 			return
 		}
@@ -200,6 +197,10 @@ var uploadCmd = &cobra.Command{
 			_, err = client.CreateGist(templateName, files)
 		} else {
 			// 기존 Gist 업데이트
+			if err := client.DeleteGist(gist.GetID()); err != nil {
+				fmt.Printf("기존 템플릿 삭제 실패: %v\n", err)
+				return
+			}
 			_, err = client.CreateGist(templateName, files)
 		}
 
