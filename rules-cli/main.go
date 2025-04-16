@@ -73,11 +73,11 @@ var listCmd = &cobra.Command{
 
 		fmt.Println("저장된 템플릿 목록:")
 		for _, gist := range gists {
-			description := gist.GetDescription()
-			if description == "" {
-				description = "(설명 없음)"
+			name := gist.GetDescription()
+			if name == "" {
+				name = "(이름 없음)"
 			}
-			fmt.Printf("- %s: %s\n", gist.GetID(), description)
+			fmt.Printf("- %s\n", name)
 		}
 	},
 }
@@ -87,8 +87,27 @@ var syncCmd = &cobra.Command{
 	Short: "템플릿 다운로드",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("템플릿 %s 다운로드 중...\n", args[0])
-		// TODO: 다운로드 로직 구현
+		projectName := args[0]
+		client, err := gist.NewGistClient()
+		if err != nil {
+			fmt.Printf("Gist 클라이언트 생성 실패: %v\n", err)
+			return
+		}
+
+		gist, err := client.FindGistByDescription(projectName)
+		if err != nil {
+			fmt.Printf("프로젝트 '%s'를 찾을 수 없습니다: %v\n", projectName, err)
+			return
+		}
+
+		contents, err := client.GetGistContent(gist.GetID())
+		if err != nil {
+			fmt.Printf("템플릿 내용 조회 실패: %v\n", err)
+			return
+		}
+
+		fmt.Printf("프로젝트 '%s'의 템플릿을 다운로드합니다...\n", projectName)
+		// TODO: 파일 저장 로직 구현
 	},
 }
 
@@ -97,8 +116,25 @@ var pushCmd = &cobra.Command{
 	Short: "로컬 템플릿 업로드",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("템플릿 %s 업로드 중...\n", args[0])
-		// TODO: 업로드 로직 구현
+		projectName := args[0]
+		client, err := gist.NewGistClient()
+		if err != nil {
+			fmt.Printf("Gist 클라이언트 생성 실패: %v\n", err)
+			return
+		}
+
+		// TODO: 로컬 파일 읽기 로직 구현
+		files := map[string]string{
+			"example.json": "{}", // 임시 데이터
+		}
+
+		_, err = client.CreateGist(projectName, files)
+		if err != nil {
+			fmt.Printf("템플릿 업로드 실패: %v\n", err)
+			return
+		}
+
+		fmt.Printf("프로젝트 '%s'의 템플릿이 업로드되었습니다.\n", projectName)
 	},
 }
 

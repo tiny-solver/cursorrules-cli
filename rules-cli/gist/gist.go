@@ -3,7 +3,6 @@ package gist
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/google/go-github/v58/github"
@@ -22,7 +21,6 @@ func NewGistClient() (*GistClient, error) {
 		return nil, fmt.Errorf("GitHub 토큰이 설정되지 않았습니다. 'cursorrules auth' 명령어로 토큰을 설정하세요")
 	}
 
-	ctx := context.Background()
 	ts := github.BasicAuthTransport{
 		Username: "token",
 		Password: token,
@@ -84,4 +82,20 @@ func (g *GistClient) CreateGist(description string, files map[string]string) (*g
 	}
 
 	return newGist, nil
+}
+
+// FindGistByDescription 프로젝트 이름으로 Gist 찾기
+func (g *GistClient) FindGistByDescription(description string) (*github.Gist, error) {
+	gists, err := g.ListGists()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, gist := range gists {
+		if gist.GetDescription() == description {
+			return gist, nil
+		}
+	}
+
+	return nil, fmt.Errorf("프로젝트 '%s'를 찾을 수 없습니다", description)
 } 

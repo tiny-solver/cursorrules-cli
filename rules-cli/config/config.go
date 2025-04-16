@@ -13,8 +13,14 @@ const (
 	configFile = "config-cli.json"
 )
 
+var initialized bool
+
 // InitConfig 설정 파일 초기화
 func InitConfig() error {
+	if initialized {
+		return nil
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("홈 디렉토리를 찾을 수 없습니다: %v", err)
@@ -37,17 +43,28 @@ func InitConfig() error {
 		return fmt.Errorf("설정 파일을 읽을 수 없습니다: %v", err)
 	}
 
+	initialized = true
 	return nil
 }
 
 // SaveToken GitHub 토큰 저장
 func SaveToken(token string) error {
+	if !initialized {
+		if err := InitConfig(); err != nil {
+			return err
+		}
+	}
 	viper.Set("github_token", token)
 	return viper.WriteConfig()
 }
 
 // GetToken 저장된 GitHub 토큰 조회
 func GetToken() string {
+	if !initialized {
+		if err := InitConfig(); err != nil {
+			return ""
+		}
+	}
 	return viper.GetString("github_token")
 }
 
