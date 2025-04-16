@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tinysolver/rules-cli/config"
 	"github.com/tinysolver/rules-cli/gist"
+	"github.com/tinysolver/rules-cli/filesystem"
 )
 
 var rootCmd = &cobra.Command{
@@ -82,8 +83,8 @@ var listCmd = &cobra.Command{
 	},
 }
 
-var syncCmd = &cobra.Command{
-	Use:   "sync [name]",
+var pullCmd = &cobra.Command{
+	Use:   "pull [name]",
 	Short: "템플릿 다운로드",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -100,7 +101,7 @@ var syncCmd = &cobra.Command{
 			return
 		}
 
-		contents, err := client.GetGistContent(gist.GetID())
+		_, err = client.GetGistContent(gist.GetID())
 		if err != nil {
 			fmt.Printf("템플릿 내용 조회 실패: %v\n", err)
 			return
@@ -123,9 +124,22 @@ var pushCmd = &cobra.Command{
 			return
 		}
 
-		// TODO: 로컬 파일 읽기 로직 구현
+		template, err := filesystem.FindLocalRules()
+		if err != nil {
+			fmt.Printf("로컬 규칙 파일 검색 실패: %v\n", err)
+			return
+		}
+
+		// 템플릿을 JSON으로 변환
+		jsonData, err := template.ToJSON()
+		if err != nil {
+			fmt.Printf("JSON 변환 실패: %v\n", err)
+			return
+		}
+
+		// Gist에 업로드
 		files := map[string]string{
-			"example.json": "{}", // 임시 데이터
+			"template.json": string(jsonData),
 		}
 
 		_, err = client.CreateGist(projectName, files)
@@ -141,7 +155,7 @@ var pushCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(authCmd)
 	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(syncCmd)
+	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(pushCmd)
 }
 

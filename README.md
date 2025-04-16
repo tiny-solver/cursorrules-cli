@@ -26,17 +26,15 @@ go install github.com/tinysolver/rules-cli@latest
 
 ### 1. GitHub 토큰 설정
 
-먼저 GitHub Fine-grained 토큰을 발급받아야 합니다:
+먼저 GitHub Personal Access Token을 발급받아야 합니다:
 
 1. GitHub 계정으로 로그인
-2. Settings > Developer settings > Fine-grained tokens로 이동
-3. "Generate new token" 클릭
+2. Settings > Developer settings > Personal access tokens > Tokens (classic)로 이동
+3. "Generate new token (classic)" 클릭
 4. 토큰 설정:
-   - Token name: `cursorrules-cli` (또는 원하는 이름)
+   - Note: `cursorrules-cli` (또는 원하는 이름)
    - Expiration: 원하는 만료 기간 선택
-   - Repository access: "All repositories" 선택
-   - Permissions:
-     - Gists: Read and write
+   - Select scopes: `gist` 체크
 5. "Generate token" 클릭하여 토큰 발급
 6. 발급된 토큰을 복사하여 다음 명령어로 설정:
    ```bash
@@ -50,7 +48,7 @@ go install github.com/tinysolver/rules-cli@latest
 cursorrules list
 
 # 템플릿 다운로드
-cursorrules sync 'template-name'
+cursorrules pull 'template-name'
 
 # 로컬 템플릿 업로드
 cursorrules push 'template-name'
@@ -62,7 +60,7 @@ cursorrules push 'template-name'
    ```bash
    cursorrules auth
    ```
-   - GitHub OAuth를 통한 인증
+   - GitHub Personal Access Token을 통한 인증
    - 토큰은 `~/.cursorrules/config-cli.json`에 저장
 
 2. **템플릿 목록**
@@ -74,7 +72,7 @@ cursorrules push 'template-name'
 
 3. **템플릿 다운로드**
    ```bash
-   cursorrules sync <template-name>
+   cursorrules pull <template-name>
    ```
    - 지정한 템플릿을 현재 디렉토리에 다운로드
    - 기존 파일이 있으면 덮어쓰기 전 확인
@@ -83,7 +81,7 @@ cursorrules push 'template-name'
    ```bash
    cursorrules push <template-name>
    ```
-   - `~/.cursor/rules/*`의 모든 파일을 JSON으로 변환
+   - 현재 디렉토리의 `.cursor/rules/**/*.mdc` 파일들을 찾아서 JSON으로 변환
    - GitHub Gist에 업로드
    - 파일 경로와 내용을 포함
 
@@ -91,17 +89,16 @@ cursorrules push 'template-name'
 
 ### 로컬 저장소
 ```
-~/.cursor/rules/
-  ├── rule1.json
-  ├── rule2.json
+.cursor/rules/
+  ├── rule1.mdc
+  ├── rule2.mdc
   └── ...
 ```
 
 ### 설정 파일
 ```
 ~/.cursorrules/config-cli.json
-  ├── github_token
-  └── gist_id
+  └── github_token
 ```
 
 ## 기여하기
