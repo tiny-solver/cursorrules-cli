@@ -74,8 +74,8 @@ var listCmd = &cobra.Command{
 		}
 
 		fmt.Println("저장된 템플릿 목록:")
-		for _, gist := range gists {
-			name := gist.GetDescription()
+		for _, g := range gists {
+			name := gist.GetProjectName(g.GetDescription())
 			if name == "" {
 				name = "(이름 없음)"
 			}
@@ -174,9 +174,17 @@ var uploadCmd = &cobra.Command{
 			return
 		}
 
+		// 버전 정보를 JSON으로 변환
+		versionData, err := version.ToJSONString()
+		if err != nil {
+			fmt.Printf("버전 정보 변환 실패: %v\n", err)
+			return
+		}
+
 		// Gist에 업로드
 		files := map[string]string{
 			"template.json": string(jsonData),
+			"version.json": versionData,
 		}
 
 		_, err = client.CreateGist(projectName, files)

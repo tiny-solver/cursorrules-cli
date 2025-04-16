@@ -41,6 +41,14 @@ func IsCursorRulesGist(gist *github.Gist) bool {
 	return strings.Contains(gist.GetDescription(), GistTag)
 }
 
+// GetProjectName Gist 설명에서 프로젝트 이름 추출
+func GetProjectName(description string) string {
+	// 태그 제거
+	name := strings.TrimPrefix(description, GistTag)
+	name = strings.TrimSpace(name)
+	return name
+}
+
 // ListGists 저장된 Gist 목록 조회
 func (g *GistClient) ListGists() ([]*github.Gist, error) {
 	ctx := context.Background()
@@ -96,15 +104,15 @@ func (g *GistClient) GetGistInfo(gistID string) (*GistInfo, error) {
 		ID:          gist.GetID(),
 		Description: gist.GetDescription(),
 		Public:      gist.GetPublic(),
-		CreatedAt:   gist.GetCreatedAt(),
-		UpdatedAt:   gist.GetUpdatedAt(),
+		CreatedAt:   gist.GetCreatedAt().Time,
+		UpdatedAt:   gist.GetUpdatedAt().Time,
 		Files:       make(map[string]FileInfo),
 		Owner:       gist.GetOwner().GetLogin(),
-		Version:     gist.GetHistory()[0].GetVersion(),
+		Version:     gist.GetUpdatedAt().String(),
 	}
 
 	for filename, file := range gist.Files {
-		info.Files[filename] = FileInfo{
+		info.Files[string(filename)] = FileInfo{
 			Filename:  file.GetFilename(),
 			Type:      file.GetType(),
 			Language:  file.GetLanguage(),
@@ -162,19 +170,19 @@ func (g *GistClient) CreateGist(description string, files map[string]string) (*g
 }
 
 // FindGistByDescription 프로젝트 이름으로 Gist 찾기
-func (g *GistClient) FindGistByDescription(description string) (*github.Gist, error) {
+func (g *GistClient) FindGistByDescription(projectName string) (*github.Gist, error) {
 	gists, err := g.ListGists()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, gist := range gists {
-		if gist.GetDescription() == description {
+		if GetProjectName(gist.GetDescription()) == projectName {
 			return gist, nil
 		}
 	}
 
-	return nil, fmt.Errorf("프로젝트 '%s'를 찾을 수 없습니다", description)
+	return nil, fmt.Errorf("프로젝트 '%s'를 찾을 수 없습니다", projectName)
 }
 
 // DeleteGist Gist 삭제
