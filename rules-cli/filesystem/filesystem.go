@@ -61,14 +61,17 @@ func LoadLocalTemplate() (*models.Template, *models.TemplateVersion, error) {
 			return fmt.Errorf("파일 읽기 실패: %v", err)
 		}
 
+		// 상대 경로 계산 (rulesDir 기준)
 		relPath, err := filepath.Rel(rulesDir, path)
 		if err != nil {
 			return fmt.Errorf("상대 경로 변환 실패: %v", err)
 		}
 
+		// 파일 구조 보존을 위해 경로를 키로 사용
 		rule := models.Rule{
 			Name:    relPath,
 			Content: string(content),
+			Path:    relPath,
 		}
 
 		template.Files[relPath] = rule
@@ -114,7 +117,8 @@ func SaveLocalTemplate(template *models.Template, version *models.TemplateVersio
 			continue
 		}
 
-		filePath := filepath.Join(dir, file.Name)
+		// 파일 구조 보존을 위해 Path 사용
+		filePath := filepath.Join(dir, file.Path)
 		content := []byte(file.Content)
 		
 		// 디렉토리 생성

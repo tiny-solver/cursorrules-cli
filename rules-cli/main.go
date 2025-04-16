@@ -114,17 +114,20 @@ var downloadCmd = &cobra.Command{
 			return
 		}
 
-		// JSON에서 템플릿 역직렬화
-		jsonContent, ok := contents["template.json"]
-		if !ok {
-			fmt.Println("템플릿 파일을 찾을 수 없습니다")
-			return
+		// 템플릿 생성
+		template := &models.Template{
+			Files: make(map[string]models.Rule),
 		}
 
-		template := &models.Template{}
-		if err := template.FromJSON([]byte(jsonContent)); err != nil {
-			fmt.Printf("템플릿 파싱 실패: %v\n", err)
-			return
+		// 각 파일을 템플릿에 추가
+		for filename, content := range contents {
+			// 파일 구조 보존을 위해 경로를 키로 사용
+			rule := models.Rule{
+				Name:    filename,
+				Content: content,
+				Path:    filename,
+			}
+			template.Files[filename] = rule
 		}
 
 		// 로컬에 저장

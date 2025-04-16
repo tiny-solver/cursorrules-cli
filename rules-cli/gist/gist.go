@@ -161,8 +161,13 @@ func (g *GistClient) CreateGist(description string, files map[string]string) (*g
 	}
 
 	for filename, content := range files {
+		// 빈 내용은 " "로 대체
+		if content == "" {
+			content = " "
+		}
+		contentPtr := &content
 		gist.Files[github.GistFilename(filename)] = github.GistFile{
-			Content: &content,
+			Content: contentPtr,
 		}
 	}
 
