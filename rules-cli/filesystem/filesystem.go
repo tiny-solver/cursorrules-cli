@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
+	"crypto/md5"
 
 	"github.com/tinysolver/rules-cli/models"
 )
 
 const (
-	rulesDir   = ".cursor/rules"
-	versionFile = "version.json"
+	rulesDir = ".cursor/rules"
 )
 
 // GetRulesDir 규칙 디렉토리 경로 조회
@@ -31,33 +30,52 @@ func GetRulesDir() (string, error) {
 
 // LoadLocalTemplate 로컬 템플릿 로드
 func LoadLocalTemplate() (*models.Template, *models.TemplateVersion, error) {
-	dir, err := GetRulesDir()
+	rulesDir, err := GetRulesDir()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	template := models.NewTemplate("local", "로컬 템플릿")
-	version := models.NewTemplateVersion("local", "v1.0.0")
-
-	// 디렉토리 내의 모든 파일 읽기
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, nil, fmt.Errorf("디렉토리 읽기 실패: %v", err)
+	template := &models.Template{
+		Files: make(map[string]models.Rule),
 	}
 
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
+	version := models.NewTemplateVersion("local", "v1.0.0")
 
-		filePath := filepath.Join(dir, file.Name())
-		content, err := os.ReadFile(filePath)
+	err = filepath.Walk(rulesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil, nil, fmt.Errorf("파일 읽기 실패: %v", err)
+			return err
 		}
 
-		template.AddFile(file.Name(), string(content), time.Now().String())
-		version.AddFile(file.Name(), time.Now(), string(content))
+		if info.IsDir() {
+			return nil
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("파일 읽기 실패: %v", err)
+		}
+
+		relPath, err := filepath.Rel(rulesDir, path)
+		if err != nil {
+			return fmt.Errorf("상대 경로 변환 실패: %v", err)
+		}
+
+		rule := models.Rule{
+			Name:    relPath,
+			Content: string(content),
+		}
+
+		template.Files[relPath] = rule
+
+		// 버전 정보 추가
+		hash := fmt.Sprintf("%x", md5.Sum(content))
+		version.AddFile(relPath, info.ModTime(), hash)
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("템플릿 로드 실패: %v", err)
 	}
 
 	return template, version, nil
@@ -76,7 +94,7 @@ func SaveLocalTemplate(template *models.Template, version *models.TemplateVersio
 		return fmt.Errorf("버전 정보 변환 실패: %v", err)
 	}
 
-	versionPath := filepath.Join(dir, versionFile)
+	versionPath := filepath.Join(dir, "version.json")
 	if err := os.WriteFile(versionPath, []byte(versionData), 0644); err != nil {
 		return fmt.Errorf("버전 정보 저장 실패: %v", err)
 	}
@@ -134,7 +152,7 @@ func MergeTemplate(template *models.Template, version *models.TemplateVersion) e
 		return fmt.Errorf("버전 정보 변환 실패: %v", err)
 	}
 
-	versionPath := filepath.Join(dir, versionFile)
+	versionPath := filepath.Join(dir, "version.json")
 	if err := os.WriteFile(versionPath, []byte(versionData), 0644); err != nil {
 		return fmt.Errorf("버전 정보 저장 실패: %v", err)
 	}

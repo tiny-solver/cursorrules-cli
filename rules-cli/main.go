@@ -89,8 +89,11 @@ var downloadCmd = &cobra.Command{
 	Short: "템플릿 다운로드",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		projectName := args[0]
-		force, _ := cmd.Flags().GetBool("force")
+		if len(args) != 1 {
+			fmt.Println("템플릿 이름을 지정해주세요")
+			return
+		}
+		templateName := args[0]
 
 		client, err := gist.NewGistClient()
 		if err != nil {
@@ -98,9 +101,17 @@ var downloadCmd = &cobra.Command{
 			return
 		}
 
-		gist, err := client.FindGistByDescription(projectName)
+		// 로컬 템플릿 로드
+		localTemplate, _, err := filesystem.LoadLocalTemplate()
 		if err != nil {
-			fmt.Printf("프로젝트 '%s'를 찾을 수 없습니다: %v\n", projectName, err)
+			fmt.Printf("로컬 템플릿 로드 실패: %v\n", err)
+			return
+		}
+
+		// Gist에서 템플릿 다운로드
+		gist, err := client.FindGistByDescription(templateName)
+		if err != nil {
+			fmt.Printf("템플릿 다운로드 실패: %v\n", err)
 			return
 		}
 
@@ -110,42 +121,22 @@ var downloadCmd = &cobra.Command{
 			return
 		}
 
-		// JSON 데이터를 템플릿으로 변환
-		template, err := models.FromJSON([]byte(contents["template.json"]))
-		if err != nil {
-			fmt.Printf("템플릿 변환 실패: %v\n", err)
-			return
-		}
-
-		// 충돌 확인
-		conflicts, err := filesystem.CheckConflicts(template)
-		if err != nil {
-			fmt.Printf("충돌 확인 실패: %v\n", err)
-			return
-		}
-
-		if len(conflicts) > 0 {
-			if force {
-				fmt.Println("강제로 덮어쓰기 모드로 진행합니다...")
-			} else {
-				fmt.Println("다음 파일들이 충돌합니다:")
-				for _, conflict := range conflicts {
-					fmt.Printf("  - %s\n", conflict)
-				}
-				fmt.Println("\n다음 옵션 중 하나를 선택하세요:")
-				fmt.Println("  --force: 강제로 덮어쓰기")
-				return
+		// 템플릿 내용을 로컬에 저장
+		for filename, content := range contents {
+			rule := models.Rule{
+				Name:    filename,
+				Content: content,
 			}
+			localTemplate.Files[filename] = rule
 		}
 
-		// 템플릿 저장
-		version := models.NewTemplateVersion(projectName, "v1.0.0")
-		if err := filesystem.MergeTemplate(template, version); err != nil {
+		// 로컬에 저장
+		if err := filesystem.SaveLocalTemplate(localTemplate, nil); err != nil {
 			fmt.Printf("템플릿 저장 실패: %v\n", err)
 			return
 		}
 
-		fmt.Printf("프로젝트 '%s'의 템플릿이 다운로드되었습니다.\n", projectName)
+		fmt.Printf("템플릿 '%s'이(가) 성공적으로 다운로드되었습니다.\n", templateName)
 	},
 }
 
@@ -154,46 +145,70 @@ var uploadCmd = &cobra.Command{
 	Short: "로컬 템플릿 업로드",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		projectName := args[0]
+		if len(args) != 1 {
+			fmt.Println("템플릿 이름을 지정해주세요")
+			return
+		}
+		templateName := args[0]
+
 		client, err := gist.NewGistClient()
 		if err != nil {
 			fmt.Printf("Gist 클라이언트 생성 실패: %v\n", err)
 			return
 		}
 
-		template, version, err := filesystem.LoadLocalTemplate()
+		// 로컬 템플릿 로드
+		localTemplate, _, err := filesystem.LoadLocalTemplate()
 		if err != nil {
 			fmt.Printf("로컬 템플릿 로드 실패: %v\n", err)
 			return
 		}
 
-		// 템플릿을 JSON으로 변환
-		jsonData, err := template.ToJSON()
-		if err != nil {
-			fmt.Printf("JSON 변환 실패: %v\n", err)
-			return
+		// Gist에서 기존 템플릿 확인
+		gist, err := client.FindGistByDescription(templateName)
+		if err == nil {
+			// 기존 템플릿이 있는 경우 버전 비교
+			contents, err := client.GetGistContent(gist.GetID())
+			if err != nil {
+				fmt.Printf("템플릿 내용 조회 실패: %v\n", err)
+				return
+			}
+
+			needsUpdate := false
+			for filename, content := range contents {
+				localRule, exists := localTemplate.Files[filename]
+				if !exists || localRule.Content != content {
+					needsUpdate = true
+					fmt.Printf("업데이트 필요: %s\n", filename)
+				}
+			}
+
+			if !needsUpdate {
+				fmt.Println("모든 파일이 최신 상태입니다.")
+				return
+			}
 		}
 
-		// 버전 정보를 JSON으로 변환
-		versionData, err := version.ToJSONString()
-		if err != nil {
-			fmt.Printf("버전 정보 변환 실패: %v\n", err)
-			return
+		// 템플릿 업로드
+		files := make(map[string]string)
+		for _, rule := range localTemplate.Files {
+			files[rule.Name] = rule.Content
 		}
 
-		// Gist에 업로드
-		files := map[string]string{
-			"template.json": string(jsonData),
-			"version.json": versionData,
+		if gist == nil {
+			// 새 Gist 생성
+			_, err = client.CreateGist(templateName, files)
+		} else {
+			// 기존 Gist 업데이트
+			_, err = client.CreateGist(templateName, files)
 		}
 
-		_, err = client.CreateGist(projectName, files)
 		if err != nil {
 			fmt.Printf("템플릿 업로드 실패: %v\n", err)
 			return
 		}
 
-		fmt.Printf("프로젝트 '%s'의 템플릿이 업로드되었습니다.\n", projectName)
+		fmt.Printf("템플릿 '%s'이(가) 성공적으로 업로드되었습니다.\n", templateName)
 	},
 }
 
@@ -244,6 +259,7 @@ func init() {
 	rootCmd.AddCommand(deleteCmd)
 
 	downloadCmd.Flags().BoolP("force", "f", false, "강제로 덮어쓰기")
+	downloadCmd.Flags().BoolP("merge", "m", false, "로컬 파일과 병합")
 	deleteCmd.Flags().BoolP("force", "f", false, "확인 없이 강제 삭제")
 }
 

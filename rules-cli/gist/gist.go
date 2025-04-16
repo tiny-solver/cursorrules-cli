@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-github/v58/github"
 	"github.com/tinysolver/rules-cli/config"
+	"github.com/tinysolver/rules-cli/models"
 )
 
 const (
@@ -84,12 +85,14 @@ type GistInfo struct {
 
 // FileInfo Gist 파일의 상세 정보
 type FileInfo struct {
-	Filename  string `json:"filename"`
-	Type      string `json:"type"`
-	Language  string `json:"language"`
-	Size      int    `json:"size"`
-	RawURL    string `json:"raw_url"`
-	Content   string `json:"content"`
+	Filename    string    `json:"filename"`
+	Type        string    `json:"type"`
+	Language    string    `json:"language"`
+	Size        int       `json:"size"`
+	RawURL      string    `json:"raw_url"`
+	Content     string    `json:"content"`
+	LastModified time.Time `json:"last_modified"`
+	Hash        string    `json:"hash"`
 }
 
 // GetGistInfo Gist의 상세 정보 조회
@@ -113,12 +116,14 @@ func (g *GistClient) GetGistInfo(gistID string) (*GistInfo, error) {
 
 	for filename, file := range gist.Files {
 		info.Files[string(filename)] = FileInfo{
-			Filename:  file.GetFilename(),
-			Type:      file.GetType(),
-			Language:  file.GetLanguage(),
-			Size:      file.GetSize(),
-			RawURL:    file.GetRawURL(),
-			Content:   file.GetContent(),
+			Filename:     file.GetFilename(),
+			Type:         file.GetType(),
+			Language:     file.GetLanguage(),
+			Size:         file.GetSize(),
+			RawURL:       file.GetRawURL(),
+			Content:      file.GetContent(),
+			LastModified: gist.GetUpdatedAt().Time,
+			Hash:         file.GetContent(), // 임시로 content를 hash로 사용
 		}
 	}
 
@@ -193,4 +198,34 @@ func (g *GistClient) DeleteGist(gistID string) error {
 		return fmt.Errorf("Gist 삭제 실패: %v", err)
 	}
 	return nil
+}
+
+// CheckSyncNeeded 동기화 필요 여부 확인
+func (g *GistClient) CheckSyncNeeded(gistID string, localVersion *models.TemplateVersion) (bool, map[string]bool, error) {
+	info, err := g.GetGistInfo(gistID)
+	if err != nil {
+		return false, nil, err
+	}
+
+	needsSync := false
+	syncFiles := make(map[string]bool)
+
+	// 각 파일별로 동기화 필요 여부 확인
+	for filename, fileInfo := range info.Files {
+		localFile, exists := localVersion.GetFile(filename)
+		if !exists {
+			// 로컬에 없는 파일은 동기화 필요
+			needsSync = true
+			syncFiles[filename] = true
+			continue
+		}
+
+		// 파일 내용이 다르거나 마지막 수정 시간이 더 최신인 경우 동기화 필요
+		if fileInfo.Hash != localFile.Hash || fileInfo.LastModified.After(localFile.LastModified) {
+			needsSync = true
+			syncFiles[filename] = true
+		}
+	}
+
+	return needsSync, syncFiles, nil
 } 
