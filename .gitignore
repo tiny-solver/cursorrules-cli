@@ -1,2 +1,2 @@
 .env*
-rules-cli/cursorrules
+**/cursorrules

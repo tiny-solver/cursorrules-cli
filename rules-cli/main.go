@@ -10,6 +10,7 @@ import (
 	"github.com/tinysolver/rules-cli/config"
 	"github.com/tinysolver/rules-cli/gist"
 	"github.com/tinysolver/rules-cli/filesystem"
+	"github.com/tinysolver/rules-cli/models"
 )
 
 var rootCmd = &cobra.Command{
@@ -89,6 +90,9 @@ var pullCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		projectName := args[0]
+		force, _ := cmd.Flags().GetBool("force")
+		merge, _ := cmd.Flags().GetBool("merge")
+
 		client, err := gist.NewGistClient()
 		if err != nil {
 			fmt.Printf("Gist 클라이언트 생성 실패: %v\n", err)
@@ -101,14 +105,50 @@ var pullCmd = &cobra.Command{
 			return
 		}
 
-		_, err = client.GetGistContent(gist.GetID())
+		contents, err := client.GetGistContent(gist.GetID())
 		if err != nil {
 			fmt.Printf("템플릿 내용 조회 실패: %v\n", err)
 			return
 		}
 
-		fmt.Printf("프로젝트 '%s'의 템플릿을 다운로드합니다...\n", projectName)
-		// TODO: 파일 저장 로직 구현
+		// JSON 데이터를 템플릿으로 변환
+		template, err := models.FromJSON([]byte(contents["template.json"]))
+		if err != nil {
+			fmt.Printf("템플릿 변환 실패: %v\n", err)
+			return
+		}
+
+		// 충돌 확인
+		conflicts, err := filesystem.CheckConflicts(template)
+		if err != nil {
+			fmt.Printf("충돌 확인 실패: %v\n", err)
+			return
+		}
+
+		if len(conflicts) > 0 {
+			if force {
+				fmt.Println("강제로 덮어쓰기 모드로 진행합니다...")
+			} else if merge {
+				fmt.Println("자동 병합 모드로 진행합니다...")
+			} else {
+				fmt.Println("다음 파일들이 충돌합니다:")
+				for _, conflict := range conflicts {
+					fmt.Printf("  - %s\n", conflict)
+				}
+				fmt.Println("\n다음 옵션 중 하나를 선택하세요:")
+				fmt.Println("  --force: 강제로 덮어쓰기")
+				fmt.Println("  --merge: 자동 병합")
+				return
+			}
+		}
+
+		// 템플릿 저장
+		if err := filesystem.MergeTemplate(template); err != nil {
+			fmt.Printf("템플릿 저장 실패: %v\n", err)
+			return
+		}
+
+		fmt.Printf("프로젝트 '%s'의 템플릿이 다운로드되었습니다.\n", projectName)
 	},
 }
 
@@ -157,6 +197,9 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(pushCmd)
+
+	pullCmd.Flags().BoolP("force", "f", false, "강제로 덮어쓰기")
+	pullCmd.Flags().BoolP("merge", "m", false, "자동 병합")
 }
 
 func main() {

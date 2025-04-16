@@ -154,4 +154,69 @@ func FindLocalRules() (*models.Template, error) {
 	}
 
 	return template, nil
+}
+
+// CheckConflicts 로컬 파일과 템플릿의 충돌 확인
+func CheckConflicts(template *models.Template) ([]string, error) {
+	rulesPath, err := GetRulesDir()
+	if err != nil {
+		return nil, err
+	}
+
+	var conflicts []string
+	for _, rule := range template.Files {
+		filePath := filepath.Join(rulesPath, rule.Path)
+		if _, err := os.Stat(filePath); err == nil {
+			// 파일이 존재하면 내용 비교
+			content, err := os.ReadFile(filePath)
+			if err != nil {
+				return nil, fmt.Errorf("파일 읽기 실패: %v", err)
+			}
+			if string(content) != rule.Content {
+				conflicts = append(conflicts, rule.Path)
+			}
+		}
+	}
+
+	return conflicts, nil
+}
+
+// MergeTemplate 로컬 파일과 템플릿 병합
+func MergeTemplate(template *models.Template) error {
+	rulesPath, err := GetRulesDir()
+	if err != nil {
+		return err
+	}
+
+	// 기존 파일 백업
+	backupPath := rulesPath + ".backup"
+	if err := os.Rename(rulesPath, backupPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("백업 실패: %v", err)
+	}
+
+	// 새 디렉토리 생성
+	if err := os.MkdirAll(rulesPath, 0755); err != nil {
+		return fmt.Errorf("디렉토리 생성 실패: %v", err)
+	}
+
+	// 파일 저장
+	for _, rule := range template.Files {
+		filePath := filepath.Join(rulesPath, rule.Path)
+		dirPath := filepath.Dir(filePath)
+
+		if err := os.MkdirAll(dirPath, 0755); err != nil {
+			return fmt.Errorf("디렉토리 생성 실패: %v", err)
+		}
+
+		if err := os.WriteFile(filePath, []byte(rule.Content), 0644); err != nil {
+			return fmt.Errorf("파일 저장 실패: %v", err)
+		}
+	}
+
+	// 백업 삭제
+	if err := os.RemoveAll(backupPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("백업 삭제 실패: %v", err)
+	}
+
+	return nil
 } 
